@@ -95,7 +95,7 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 3px solid
   backdrop-filter: blur(16px);
   cursor: pointer;
 }
-.brand-mark, .habr-mark {
+.habr-mark {
   display: inline-grid;
   place-items: center;
   flex: 0 0 auto;
@@ -104,7 +104,7 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 3px solid
   font-family: 'IBM Plex Mono', monospace;
   font-weight: 700;
 }
-.brand-mark { width: 30px; height: 30px; border-radius: 50%; }
+.brand-mark { width: 30px; height: 30px; flex: 0 0 auto; border-radius: 9px; object-fit: cover; box-shadow: 0 0 0 1px rgba(255,255,255,.18); }
 .top-actions { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
 .icon-button, .sheet-close, .round-action {
   width: 40px;
@@ -248,8 +248,8 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 3px solid
 @keyframes overlay-in { from { opacity: 0; transform: translateY(18px) scale(.97); } }
 .skip-button { position: absolute; z-index: 2; top: 18px; right: 18px; padding: 7px 8px; border: 0; background: transparent; color: var(--muted); font-size: 11px; cursor: pointer; }
 .tutorial-visual { min-height: 43%; display: grid; place-items: center; overflow: hidden; background: radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 55%), var(--surface-soft); }
-.tutorial-card { width: 128px; height: 174px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); box-shadow: 0 18px 45px rgba(0,0,0,.13); animation: tutorial-up 1.8s ease-in-out infinite; }
-.tutorial-card span { font: 700 64px 'IBM Plex Mono', monospace; }
+.tutorial-card { width: 128px; height: 174px; padding: 25px 0 18px; display: grid; grid-template-rows: 1fr auto; place-items: center; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); box-shadow: 0 18px 45px rgba(0,0,0,.13); animation: tutorial-up 1.8s ease-in-out infinite; }
+.tutorial-card img { width: 78px; height: 78px; border-radius: 20px; object-fit: cover; box-shadow: 0 12px 28px rgba(4,18,29,.2); }
 .tutorial-card svg { color: var(--accent-strong); }
 @keyframes tutorial-up { 0%,100% { transform: translateY(12px); } 55% { transform: translateY(-16px); } }
 .tutorial-pair { display: flex; align-items: center; gap: 12px; color: var(--accent-strong); }
@@ -312,6 +312,16 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 3px solid
 .install-status svg, .install-hint svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .source-note { margin: 20px 4px 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
 
+.install-offer-backdrop { z-index: 108; }
+.install-offer-sheet { padding-bottom: max(calc(var(--safe-bottom) + 22px), 22px); }
+.install-offer-sheet h2 { max-width: 320px; font-size: clamp(29px, 7.8vw, 38px); }
+.install-offer-summary { margin: 18px 0; display: grid; grid-template-columns: 74px 1fr; gap: 15px; align-items: center; }
+.install-offer-summary img { width: 74px; height: 74px; border-radius: 20px; object-fit: cover; box-shadow: 0 16px 34px rgba(4,18,29,.22); }
+.install-offer-summary p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.install-offer-help { margin: 0 0 16px; padding: 12px 14px; display: flex; gap: 9px; align-items: flex-start; border-radius: 15px; background: var(--surface-soft); color: var(--muted); font-size: 11px; line-height: 1.45; }
+.install-offer-help svg { width: 17px; height: 17px; flex: 0 0 auto; color: var(--accent-strong); }
+.install-offer-actions { display: grid; gap: 9px; }
+
 .shared-intro { padding: 34px 24px 24px; justify-content: center; }
 .shared-icon { width: 58px; height: 58px; margin-bottom: 22px; display: grid; place-items: center; border-radius: 18px; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent-strong); }
 .shared-chain { max-height: 34%; margin: 15px 0 24px; overflow: auto; }
@@ -323,7 +333,7 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 3px solid
 .inline-error { position: absolute; z-index: 45; left: 14px; right: 14px; bottom: max(calc(var(--safe-bottom) + 18px), 22px); padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: 15px; background: color-mix(in srgb, var(--surface) 94%, transparent); box-shadow: 0 12px 30px rgba(0,0,0,.14); color: var(--muted); font-size: 11px; backdrop-filter: blur(16px); }
 .inline-error button { border: 0; background: transparent; color: var(--accent-strong); font-weight: 700; cursor: pointer; }
 .error-state { height: 100%; padding: 30px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-.error-state > span { width: 72px; height: 72px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 22px; color: var(--accent-strong); font: 700 28px 'IBM Plex Mono', monospace; }
+.error-app-icon { width: 72px; height: 72px; border-radius: 22px; object-fit: cover; box-shadow: 0 16px 38px rgba(4,18,29,.2); }
 .error-state h1 { margin: 22px 0 7px; font-size: 34px; letter-spacing: -.04em; }
 .error-state p { max-width: 320px; margin: 0 0 22px; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .skeleton { height: 100%; display: grid; grid-template-rows: 46% 1fr; background: var(--surface); }

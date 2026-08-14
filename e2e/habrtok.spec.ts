@@ -27,6 +27,33 @@ async function expectActionsInsideViewport(page: Page) {
   expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height);
 }
 
+async function emulateMobilePlatform(page: Page, standalone = false) {
+  await page.addInitScript(({ standaloneMode }) => {
+    Object.defineProperty(window.navigator, 'userAgent', {
+      configurable: true,
+      value: 'Mozilla/5.0 (Linux; Android 16; Mobile) AppleWebKit/537.36 Chrome/140 Safari/537.36',
+    });
+    if (standaloneMode) {
+      Object.defineProperty(window.navigator, 'standalone', {
+        configurable: true,
+        value: true,
+      });
+    }
+  }, { standaloneMode: standalone });
+}
+
+async function dispatchInstallPrompt(page: Page, outcome: 'accepted' | 'dismissed') {
+  await page.evaluate((choice) => {
+    const event = new Event('beforeinstallprompt', { cancelable: true }) as Event & {
+      prompt: () => Promise<void>;
+      userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+    };
+    event.prompt = async () => undefined;
+    event.userChoice = Promise.resolve({ outcome: choice, platform: 'web' });
+    window.dispatchEvent(event);
+  }, outcome);
+}
+
 test('onboarding teaches all four gestures', async ({ page }) => {
   await installFixtures(page);
   await page.goto('/');
@@ -129,6 +156,48 @@ test('a fresh launch avoids the previous starting article', async ({ page }) => 
   await page.reload();
   await ready(page);
   await expect(page.getByTestId('article-title')).not.toHaveText(firstStart ?? '');
+});
+
+test('mobile install offer appears after two swipes and snoozes for a week', async ({ page, context }) => {
+  await emulateMobilePlatform(page);
+  await skipOnboarding(page);
+  await installFixtures(page);
+  await page.goto('/');
+  await ready(page);
+  await dispatchInstallPrompt(page, 'dismissed');
+
+  await swipe(page, { x: 190, y: 650 }, { x: 190, y: 390 });
+  await expect(page.getByTestId('install-offer')).toBeHidden();
+  await swipe(page, { x: 190, y: 650 }, { x: 190, y: 390 });
+  const offer = page.getByTestId('install-offer');
+  await expect(offer).toBeVisible();
+  await expect(offer.getByRole('heading', { name: 'Листайте без браузерных рамок' })).toBeVisible();
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: `${shots}/13-install-offer.png` });
+
+  await offer.getByRole('button', { name: 'Установить HabrTok' }).click();
+  await expect(offer).toBeHidden();
+  const cooldown = (await context.cookies()).find((cookie) => cookie.name === 'habrtok_install_offer_after');
+  expect(cooldown).toBeDefined();
+  expect(cooldown!.expires * 1000).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);
+
+  await page.reload();
+  await ready(page);
+  await swipe(page, { x: 190, y: 650 }, { x: 190, y: 390 });
+  await swipe(page, { x: 190, y: 650 }, { x: 190, y: 390 });
+  await expect(page.getByTestId('install-offer')).toBeHidden();
+});
+
+test('standalone PWA never shows the automatic install offer', async ({ page }) => {
+  await emulateMobilePlatform(page, true);
+  await skipOnboarding(page);
+  await installFixtures(page);
+  await page.goto('/');
+  await ready(page);
+  await dispatchInstallPrompt(page, 'dismissed');
+  await swipe(page, { x: 190, y: 650 }, { x: 190, y: 390 });
+  await swipe(page, { x: 190, y: 650 }, { x: 190, y: 390 });
+  await expect(page.getByTestId('install-offer')).toBeHidden();
 });
 
 test('keyboard, dark theme, image fallback, mobile overflow, and interactive exclusions', async ({ page }) => {

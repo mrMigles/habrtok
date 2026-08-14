@@ -25,7 +25,7 @@ const tutorialSteps = [
   {
     title: 'Листайте вверх',
     body: 'Следующая техническая публикация уже стоит под текущей карточкой.',
-    visual: <div className="tutorial-card"><span>H</span><ArrowUp /></div>,
+    visual: <div className="tutorial-card"><img src="/icons/habrtok-192.png" alt="" /><ArrowUp /></div>,
   },
   {
     title: 'Уходите в тему',
@@ -154,6 +154,54 @@ export function SettingsSheet({ theme, canInstall, installed, onTheme, onInstall
         </div>
         <button type="button" className="secondary-button wide" onClick={onTutorial}>Показать жесты ещё раз</button>
         <p className="source-note">Публикации загружаются напрямую из Habr API в вашем браузере. HabrTok не копирует полные тексты.</p>
+      </section>
+    </div>
+  );
+}
+
+interface InstallOfferProps {
+  canInstall: boolean;
+  onInstall: () => void;
+  onDismiss: () => void;
+}
+
+export function InstallOffer({ canInstall, onInstall, onDismiss }: InstallOfferProps) {
+  return (
+    <div
+      className="sheet-backdrop install-offer-backdrop"
+      role="presentation"
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget) onDismiss();
+      }}
+      data-testid="install-offer"
+    >
+      <section
+        className="bottom-sheet install-offer-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="install-offer-title"
+      >
+        <span className="sheet-handle" />
+        <header>
+          <div>
+            <span className="sheet-kicker">HabrTok на телефоне</span>
+            <h2 id="install-offer-title">Листайте без браузерных рамок</h2>
+          </div>
+          <button type="button" className="sheet-close" onClick={onDismiss} aria-label="Не сейчас"><X /></button>
+        </header>
+        <div className="install-offer-summary">
+          <img src="/icons/habrtok-192.png" alt="" />
+          <p>Установите HabrTok на главный экран: полноэкранная лента, быстрый запуск и доступ к ранее открытым материалам без сети.</p>
+        </div>
+        {!canInstall && (
+          <p className="install-offer-help"><Smartphone /> iPhone: «Поделиться» → «На экран „Домой“». Android: меню браузера → «Установить».</p>
+        )}
+        <div className="install-offer-actions">
+          <button type="button" className="primary-button wide" onClick={canInstall ? onInstall : onDismiss}>
+            {canInstall ? <><Download /> Установить HabrTok</> : 'Понятно'}
+          </button>
+          <button type="button" className="secondary-button wide" onClick={onDismiss}>Не сейчас</button>
+        </div>
       </section>
     </div>
   );

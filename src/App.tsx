@@ -2,7 +2,7 @@ import { Compass, Route, SlidersHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { ArticleCard } from './ArticleCard';
 import { activeLevel, currentItem, explorationReducer, initialExplorationState } from './exploration';
-import { Onboarding, PathSheet, SettingsSheet, SharedIntro } from './Overlays';
+import { InstallOffer, Onboarding, PathSheet, SettingsSheet, SharedIntro } from './Overlays';
 import { platform } from './platform';
 import { randomizeInitialFeed } from './randomizeFeed';
 import { createShareUrl, parseShareHash } from './share';
@@ -47,7 +47,7 @@ export default function App() {
   const depth = state.levels.length - 1;
   const parentLevel = state.levels.at(-2);
   const parentArticle = parentLevel?.items[parentLevel.index];
-  const overlaysOpen = showOnboarding || showPath || showSettings || Boolean(sharedIntro);
+  const overlaysOpen = showOnboarding || showPath || showSettings || pwaInstall.offerOpen || Boolean(sharedIntro);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -196,9 +196,10 @@ export default function App() {
     }
   };
 
-  const installApp = async () => {
+  const installApp = async (fromOffer = false) => {
     const result = await pwaInstall.install();
     if (result === 'accepted') setToast('HabrTok установлен');
+    if (result === 'dismissed' || (fromOffer && result === 'unavailable')) pwaInstall.dismissOffer();
   };
 
   if (!article && loadingInitial) {
@@ -209,7 +210,7 @@ export default function App() {
     return (
       <div className="app-shell">
         <section className="error-state" role="alert">
-          <span>H!</span><h1>Лента не загрузилась</h1><p>{initialError ?? 'Habr вернул пустой ответ.'}</p>
+          <img className="error-app-icon" src="/icons/habrtok-192.png" alt="" /><h1>Лента не загрузилась</h1><p>{initialError ?? 'Habr вернул пустой ответ.'}</p>
           <button type="button" className="primary-button" onClick={() => window.location.reload()}>Повторить</button>
         </section>
       </div>
@@ -220,7 +221,7 @@ export default function App() {
     <div className={`app-shell ${overlaysOpen ? 'has-overlay' : ''}`}>
       <header className="topbar">
         <button type="button" className="brand-button" onClick={() => dispatch({ type: 'HOME' })} aria-label="HabrTok — в корень">
-          <span className="brand-mark">H</span><span>HabrTok</span>
+          <img className="brand-mark" src="/icons/habrtok-192.png" alt="" /><span>HabrTok</span>
         </button>
         <div className="top-actions">
           {depth > 0 && <span className="depth-pill" aria-label={`Глубина ${depth}`}>{String(depth).padStart(2, '0')}</span>}
@@ -240,8 +241,18 @@ export default function App() {
         depth={depth}
         loadingRelated={loadingRelatedId === article.id}
         disabled={overlaysOpen || loadingInitial}
-        onNext={() => dispatch({ type: 'NEXT' })}
-        onPrevious={() => dispatch({ type: 'PREVIOUS' })}
+        onNext={() => {
+          if (level.index < level.items.length - 1) {
+            dispatch({ type: 'NEXT' });
+            pwaInstall.recordVerticalBrowse();
+          }
+        }}
+        onPrevious={() => {
+          if (level.index > 0) {
+            dispatch({ type: 'PREVIOUS' });
+            pwaInstall.recordVerticalBrowse();
+          }
+        }}
         onExplore={() => void explore()}
         onBack={() => dispatch({ type: 'BACK' })}
         onShare={() => void share(false)}
@@ -260,6 +271,13 @@ export default function App() {
           onInstall={() => void installApp()}
           onClose={() => setShowSettings(false)}
           onTutorial={() => { setShowSettings(false); setOnboardingStep(0); setShowOnboarding(true); }}
+        />
+      )}
+      {pwaInstall.offerOpen && (
+        <InstallOffer
+          canInstall={pwaInstall.canInstall}
+          onInstall={() => void installApp(true)}
+          onDismiss={pwaInstall.dismissOffer}
         />
       )}
       {sharedIntro && <SharedIntro items={sharedIntro.items} pathLength={sharedIntro.pathLength} onContinue={() => setSharedIntro(null)} />}
