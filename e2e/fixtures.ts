@@ -84,6 +84,16 @@ function svgFor(id: string): string {
 }
 
 export async function installFixtures(page: Page, options: { failApi?: boolean } = {}) {
+  await page.addInitScript(() => {
+    Object.defineProperty(Crypto.prototype, 'getRandomValues', {
+      configurable: true,
+      value<T extends ArrayBufferView>(array: T): T {
+        new Uint8Array(array.buffer, array.byteOffset, array.byteLength).fill(0);
+        return array;
+      },
+    });
+  });
+
   await page.route('https://assets.habrtok.test/**', async (route) => {
     const id = route.request().url().match(/(\d+)\.svg/)?.[1] ?? '0';
     await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: svgFor(id) });

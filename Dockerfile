@@ -17,6 +17,7 @@ LABEL org.opencontainers.image.title="HabrTok" \
       org.opencontainers.image.source="https://github.com/mrMigles/habrtok"
 
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+RUN nginx -t
 COPY --from=build --chown=101:101 /app/dist /usr/share/nginx/html
 
 USER 101:101

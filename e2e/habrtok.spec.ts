@@ -119,6 +119,18 @@ test('held vertical drag moves full adjacent cards and cancellation does not com
   await expect(page.getByTestId('article-title')).toHaveText('TypeScript на границе системы');
 });
 
+test('a fresh launch avoids the previous starting article', async ({ page }) => {
+  await skipOnboarding(page);
+  await installFixtures(page);
+  await page.goto('/');
+  await ready(page);
+  const firstStart = await page.getByTestId('article-title').textContent();
+
+  await page.reload();
+  await ready(page);
+  await expect(page.getByTestId('article-title')).not.toHaveText(firstStart ?? '');
+});
+
 test('keyboard, dark theme, image fallback, mobile overflow, and interactive exclusions', async ({ page }) => {
   await skipOnboarding(page);
   await installFixtures(page);
@@ -127,6 +139,10 @@ test('keyboard, dark theme, image fallback, mobile overflow, and interactive exc
 
   await page.getByRole('button', { name: 'Открыть настройки' }).click();
   await expect(page.getByTestId('settings-sheet')).toBeVisible();
+  await expect(page.getByText('HabrTok всегда под рукой')).toBeVisible();
+  await expect(page.getByText(/iPhone: «Поделиться»/)).toBeVisible();
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: `${shots}/12-pwa-settings.png` });
   await page.getByRole('button', { name: 'Тёмная' }).click();
   await page.getByRole('button', { name: 'Закрыть настройки' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');

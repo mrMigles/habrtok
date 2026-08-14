@@ -3,10 +3,13 @@ import {
   ArrowRight,
   ArrowUp,
   ChevronDown,
+  CheckCircle2,
   CornerDownRight,
+  Download,
   Moon,
   Route,
   Share2,
+  Smartphone,
   Sun,
   X,
 } from 'lucide-react';
@@ -109,12 +112,15 @@ export function PathSheet({ journey, current, onClose, onShare }: PathSheetProps
 
 interface SettingsSheetProps {
   theme: 'light' | 'dark';
+  canInstall: boolean;
+  installed: boolean;
   onTheme: (theme: 'light' | 'dark') => void;
+  onInstall: () => void;
   onTutorial: () => void;
   onClose: () => void;
 }
 
-export function SettingsSheet({ theme, onTheme, onTutorial, onClose }: SettingsSheetProps) {
+export function SettingsSheet({ theme, canInstall, installed, onTheme, onInstall, onTutorial, onClose }: SettingsSheetProps) {
   return (
     <div className="sheet-backdrop" role="presentation" onPointerDown={(event) => {
       if (event.target === event.currentTarget) onClose();
@@ -127,6 +133,23 @@ export function SettingsSheet({ theme, onTheme, onTutorial, onClose }: SettingsS
           <div className="theme-switch">
             <button type="button" className={theme === 'light' ? 'active' : ''} onClick={() => onTheme('light')}><Sun /> Светлая</button>
             <button type="button" className={theme === 'dark' ? 'active' : ''} onClick={() => onTheme('dark')}><Moon /> Тёмная</button>
+          </div>
+        </div>
+        <div className="setting-block">
+          <span>Приложение на телефоне</span>
+          <div className="pwa-card">
+            <img src="/icons/habrtok-192.png" alt="" />
+            <div className="pwa-copy">
+              <strong>{installed ? 'HabrTok установлен' : 'HabrTok всегда под рукой'}</strong>
+              <p>Открывается на весь экран; оболочка и ранее просмотренные данные доступны без сети.</p>
+            </div>
+            {installed ? (
+              <span className="install-status"><CheckCircle2 /> Установлено</span>
+            ) : canInstall ? (
+              <button type="button" className="primary-button wide" onClick={onInstall}><Download /> Установить</button>
+            ) : (
+              <small className="install-hint"><Smartphone /> iPhone: «Поделиться» → «На экран „Домой“». Android: меню браузера → «Установить».</small>
+            )}
           </div>
         </div>
         <button type="button" className="secondary-button wide" onClick={onTutorial}>Показать жесты ещё раз</button>

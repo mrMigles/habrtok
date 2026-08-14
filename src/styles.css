@@ -301,6 +301,15 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 3px solid
 .theme-switch button { min-height: 42px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 11px; background: transparent; color: var(--muted); font-size: 11px; cursor: pointer; }
 .theme-switch button.active { background: var(--surface); color: var(--text); box-shadow: 0 5px 15px rgba(0,0,0,.08); }
 .theme-switch svg { width: 15px; }
+.pwa-card { padding: 14px; display: grid; grid-template-columns: 46px 1fr; gap: 11px; align-items: center; border: 1px solid var(--line); border-radius: 18px; background: var(--surface-soft); }
+.pwa-card > img { width: 46px; height: 46px; border-radius: 12px; }
+.pwa-copy { min-width: 0; display: grid; gap: 4px; }
+.pwa-copy strong { font-size: 12px; }
+.pwa-copy p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.pwa-card > .primary-button, .install-status, .install-hint { grid-column: 1 / -1; }
+.install-status, .install-hint { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.install-status { color: #3d9962; font-weight: 700; }
+.install-status svg, .install-hint svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .source-note { margin: 20px 4px 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
 
 .shared-intro { padding: 34px 24px 24px; justify-content: center; }

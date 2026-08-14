@@ -4,9 +4,11 @@ import { ArticleCard } from './ArticleCard';
 import { activeLevel, currentItem, explorationReducer, initialExplorationState } from './exploration';
 import { Onboarding, PathSheet, SettingsSheet, SharedIntro } from './Overlays';
 import { platform } from './platform';
+import { randomizeInitialFeed } from './randomizeFeed';
 import { createShareUrl, parseShareHash } from './share';
 import { habrSource } from './source';
 import type { TokItem } from './types';
+import { usePwaInstall } from './usePwaInstall';
 
 type Theme = 'light' | 'dark';
 
@@ -38,6 +40,7 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null);
   const [sharedIntro, setSharedIntro] = useState<{ items: TokItem[]; pathLength: number } | null>(null);
   const loadingMore = useRef(false);
+  const pwaInstall = usePwaInstall();
 
   const level = activeLevel(state);
   const article = currentItem(state);
@@ -65,8 +68,12 @@ export default function App() {
             setSharedIntro({ items: sharedItems, pathLength: initialShare.pathIds.length });
           }
         }
-        const items = await habrSource.discover(controller.signal);
-        if (items.length === 0) throw new Error('Пустая лента');
+        const discovered = await habrSource.discover(controller.signal);
+        if (discovered.length === 0) throw new Error('Пустая лента');
+        const items = initialShare
+          ? discovered
+          : randomizeInitialFeed(discovered, platform.read('last-start-article'));
+        if (!initialShare && items[0]) platform.write('last-start-article', items[0].id);
         dispatch({ type: 'SET_ROOT', items });
       } catch (error) {
         if (!controller.signal.aborted) setInitialError(friendlyError(error));
@@ -189,6 +196,11 @@ export default function App() {
     }
   };
 
+  const installApp = async () => {
+    const result = await pwaInstall.install();
+    if (result === 'accepted') setToast('HabrTok установлен');
+  };
+
   if (!article && loadingInitial) {
     return <div className="app-shell"><div className="skeleton"><div /><section><span /><span /><span /><span /></section></div></div>;
   }
@@ -242,7 +254,10 @@ export default function App() {
       {showSettings && (
         <SettingsSheet
           theme={theme}
+          canInstall={pwaInstall.canInstall}
+          installed={pwaInstall.installed}
           onTheme={setTheme}
+          onInstall={() => void installApp()}
           onClose={() => setShowSettings(false)}
           onTutorial={() => { setShowSettings(false); setOnboardingStep(0); setShowOnboarding(true); }}
         />
