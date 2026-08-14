@@ -1,1 +1,63 @@
-# habrtok
+# HabrTok
+
+Мобильная gesture-first лента публикаций Habr. Вертикальный свайп листает текущий уровень, свайп влево открывает тематическую ветку, свайп вправо возвращает точную позицию родителя.
+
+## Локальный запуск
+
+```bash
+npm install
+npm run dev
+```
+
+Приложение — статический Vite SPA без собственного backend. Production-запросы выполняются браузером пользователя напрямую к `https://habr.com/kek/v2/`:
+
+- `GET /articles/?sort=rating&period=weekly...` — discovery с пагинацией;
+- `GET /articles/?hub=<alias>&sort=rating&period=monthly...` — тематические кандидаты;
+- `GET /articles/<id>/` — hydrate для shared-маршрутов.
+
+Ответы валидируются во время выполнения, HTML лидов преобразуется в plain text, URL нормализуются до HTTPS, а canonical-ссылка Habr остаётся на каждой карточке. Related-запросы кэшируются и доранжируются по общим хабам, тегам и автору. При отсутствии картинки показывается типографический fallback.
+
+`kek/v2` — внутренний web API, который использует сам Habr, а не документированный публичный API. Сейчас он работает без авторизации и отдаёт `Access-Control-Allow-Origin: *`, но его схема может измениться. Поэтому сетевые ошибки не маскируются: пользователь получает retry-состояние; RSS не используется, поскольку прямой browser-only доступ к нему не является надёжным CORS-контрактом.
+
+## Portainer / Docker Compose
+
+Готовый multi-arch образ публикуется в `ghcr.io/mrmigles/habrtok`. Compose использует образ из GHCR и ничего не собирает на сервере:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+По умолчанию приложение доступно на `http://host:8080`. Порт и тег можно поменять переменными стека Portainer:
+
+```env
+HABRTOK_PORT=8080
+HABRTOK_TAG=latest
+```
+
+Для приватного GHCR-пакета добавьте registry `ghcr.io` в Portainer с GitHub PAT, имеющим `read:packages`. После переключения пакета в Public registry credentials не нужны.
+
+Контейнер работает от непривилегированного пользователя, с read-only root filesystem, без Linux capabilities и с `/healthz` healthcheck.
+
+## Публикация образа
+
+Workflow `.github/workflows/container.yml` запускает проверки, собирает `linux/amd64` и `linux/arm64`, создаёт SBOM/provenance и отправляет образ в GHCR:
+
+- push в `main`: `latest`, `main`, `sha-<commit>`;
+- тег `v1.2.3`: `v1.2.3`, `1.2.3`, `1.2`, `sha-<commit>`;
+- pull request: полноценная сборка без публикации.
+
+## Проверки
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run test:e2e
+npm run test:smoke
+```
+
+E2E перехватывает реальные production URL Habr API и проверяет pointer-жесты, вложенность, Back/Home, shared hydrate, темы, mobile overflow, rate-limit/error UI и mid-drag геометрию. Скриншотная матрица сохраняется в `test-results/screenshots/`.
+
+Клавиатура: `↑` / `↓` — следующая / предыдущая публикация, `→` — глубже в тему, `←` — назад, `Esc` — закрыть overlay.

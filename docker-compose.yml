@@ -1,0 +1,15 @@
+services:
+  habrtok:
+    image: ghcr.io/mrmigles/habrtok:${HABRTOK_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${HABRTOK_PORT:-8080}:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777,noexec,nosuid
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

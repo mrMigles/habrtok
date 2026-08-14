@@ -1,0 +1,12 @@
+.git
+.github
+.vscode
+node_modules
+dist
+playwright-report
+test-results
+*.log
+.env*
+Dockerfile*
+docker-compose*.yml
+README.md
