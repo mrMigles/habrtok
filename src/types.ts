@@ -29,10 +29,16 @@ export const tokItemSchema = z.object({
 
 export type TokItem = z.infer<typeof tokItemSchema>;
 
+export interface TokArticleDetail {
+  article: TokItem;
+  bodyHtml: string;
+}
+
 export interface TokSource {
   discover(signal?: AbortSignal): Promise<TokItem[]>;
   related(item: TokItem, signal?: AbortSignal): Promise<TokItem[]>;
   hydrate(ids: string[], signal?: AbortSignal): Promise<TokItem[]>;
+  article(id: string, signal?: AbortSignal): Promise<TokArticleDetail>;
 }
 
 export interface FeedLevel {

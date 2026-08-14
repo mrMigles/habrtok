@@ -37,6 +37,7 @@ export function rawArticle(id: string, options: RawArticleOptions = {}) {
     readingTime: 6 + (Number(id) % 7),
     complexity: Number(id) % 2 ? 'medium' : 'low',
     tags: [{ titleHtml: 'TypeScript' }, { titleHtml: hub }],
+    textHtml: `<div class="tm-article-body"><h2>Что находится внутри решения</h2><p>Полный текст публикации ${id} открывается прямо в HabrTok. Здесь автор последовательно объясняет ограничения, принятые решения и результат.</p><blockquote><p>Хорошая архитектура делает сложность видимой и управляемой.</p></blockquote><h3>Практический фрагмент</h3><pre><code>const articleId = '${id}';\nawait loadArticle(articleId);</code></pre><p>Дополнительные материалы доступны <a href="https://habr.com/ru/articles/${id}/">в оригинале на Habr</a>.</p><img src="https://assets.habrtok.test/${id}.svg" alt="Схема публикации"><script>window.evil = true</script></div>`,
   };
 }
 
@@ -83,7 +84,7 @@ function svgFor(id: string): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900" viewBox="0 0 900 900"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="hsl(${hue} 48% 18%)"/><stop offset="1" stop-color="hsl(${(hue + 45) % 360} 65% 43%)"/></linearGradient><pattern id="p" width="52" height="52" patternUnits="userSpaceOnUse"><path d="M52 0H0v52" fill="none" stroke="white" stroke-opacity=".08"/></pattern></defs><rect width="900" height="900" fill="url(#g)"/><rect width="900" height="900" fill="url(#p)"/><circle cx="690" cy="210" r="210" fill="none" stroke="white" stroke-opacity=".18" stroke-width="2"/><text x="70" y="720" fill="white" font-family="monospace" font-size="170" font-weight="700">H_${id}</text></svg>`;
 }
 
-export async function installFixtures(page: Page, options: { failApi?: boolean } = {}) {
+export async function installFixtures(page: Page, options: { failApi?: boolean; failDetail?: boolean } = {}) {
   await page.addInitScript(() => {
     Object.defineProperty(Crypto.prototype, 'getRandomValues', {
       configurable: true,
@@ -107,6 +108,10 @@ export async function installFixtures(page: Page, options: { failApi?: boolean }
     const url = new URL(route.request().url());
     const detailId = url.pathname.match(/\/articles\/(\d+)\/$/)?.[1];
     if (detailId) {
+      if (options.failDetail) {
+        await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'detail unavailable' }) });
+        return;
+      }
       const article = articles.get(detailId);
       await route.fulfill({ status: article ? 200 : 404, contentType: 'application/json', body: JSON.stringify(article ?? { message: 'not found' }) });
       return;

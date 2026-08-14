@@ -12,6 +12,7 @@ export interface GestureState {
 
 interface GestureOptions {
   disabled?: boolean;
+  onTap?: () => void;
   onDown: () => void;
   onUp: () => void;
   onLeft: () => void;
@@ -45,8 +46,10 @@ export function useGestures(options: GestureOptions) {
       if (!origin.current || finishing.current) return;
       finishing.current = true;
       const action = commit && dragRef.current.ready ? dragRef.current.direction : null;
+      const tapped = commit && dragRef.current.direction === null;
       reset();
       const latest = optionsRef.current;
+      if (tapped) latest.onTap?.();
       if (action === 'down') latest.onDown();
       if (action === 'up') latest.onUp();
       if (action === 'left') latest.onLeft();

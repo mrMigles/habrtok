@@ -1,13 +1,14 @@
 import { Compass, Route, SlidersHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { ArticleCard } from './ArticleCard';
+import { ArticleReader } from './ArticleReader';
 import { activeLevel, currentItem, explorationReducer, initialExplorationState } from './exploration';
 import { InstallOffer, Onboarding, PathSheet, SettingsSheet, SharedIntro } from './Overlays';
 import { platform } from './platform';
 import { randomizeInitialFeed } from './randomizeFeed';
 import { createShareUrl, parseShareHash } from './share';
 import { habrSource } from './source';
-import type { TokItem } from './types';
+import type { TokArticleDetail, TokItem } from './types';
 import { usePwaInstall } from './usePwaInstall';
 
 type Theme = 'light' | 'dark';
@@ -39,6 +40,11 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [toast, setToast] = useState<string | null>(null);
   const [sharedIntro, setSharedIntro] = useState<{ items: TokItem[]; pathLength: number } | null>(null);
+  const [readerArticle, setReaderArticle] = useState<TokItem | null>(null);
+  const [readerDetail, setReaderDetail] = useState<TokArticleDetail | null>(null);
+  const [readerLoading, setReaderLoading] = useState(false);
+  const [readerError, setReaderError] = useState<string | null>(null);
+  const [readerRetry, setReaderRetry] = useState(0);
   const loadingMore = useRef(false);
   const pwaInstall = usePwaInstall();
 
@@ -47,7 +53,7 @@ export default function App() {
   const depth = state.levels.length - 1;
   const parentLevel = state.levels.at(-2);
   const parentArticle = parentLevel?.items[parentLevel.index];
-  const overlaysOpen = showOnboarding || showPath || showSettings || pwaInstall.offerOpen || Boolean(sharedIntro);
+  const overlaysOpen = showOnboarding || showPath || showSettings || pwaInstall.offerOpen || Boolean(sharedIntro) || Boolean(readerArticle);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -131,6 +137,24 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    if (!readerArticle) return;
+    const controller = new AbortController();
+    setReaderDetail(null);
+    setReaderError(null);
+    setReaderLoading(true);
+    void habrSource
+      .article(readerArticle.id, controller.signal)
+      .then(setReaderDetail)
+      .catch((error) => {
+        if (!controller.signal.aborted) setReaderError(friendlyError(error));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setReaderLoading(false);
+      });
+    return () => controller.abort();
+  }, [readerArticle, readerRetry]);
+
   const explore = useCallback(async () => {
     if (!article) return;
     const prefetched = relatedById[article.id];
@@ -153,11 +177,19 @@ export default function App() {
     }
   }, [article, relatedById]);
 
+  const closeReader = useCallback(() => {
+    setReaderArticle(null);
+    setReaderDetail(null);
+    setReaderError(null);
+    setReaderLoading(false);
+  }, []);
+
   const closeOverlays = useCallback(() => {
     setShowPath(false);
     setShowSettings(false);
     setSharedIntro(null);
-  }, []);
+    closeReader();
+  }, [closeReader]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -184,12 +216,13 @@ export default function App() {
     setOnboardingStep(0);
   };
 
-  const share = async (journey: boolean) => {
-    if (!article) return;
+  const share = async (journey: boolean, target?: TokItem) => {
+    const sharedArticle = target ?? article;
+    if (!sharedArticle) return;
     const pathIds = journey ? state.journey.map((item) => item.id) : [];
-    const url = createShareUrl(pathIds, article.id);
+    const url = createShareUrl(pathIds, sharedArticle.id);
     try {
-      const result = await platform.share('HabrTok', journey ? 'Мой маршрут по Habr' : article.title, url);
+      const result = await platform.share('HabrTok', journey ? 'Мой маршрут по Habr' : sharedArticle.title, url);
       setToast(result === 'copied' ? 'Ссылка скопирована' : 'Готово');
     } catch {
       setToast('Не удалось скопировать ссылку');
@@ -255,6 +288,7 @@ export default function App() {
         }}
         onExplore={() => void explore()}
         onBack={() => dispatch({ type: 'BACK' })}
+        onRead={() => setReaderArticle(article)}
         onShare={() => void share(false)}
         onOpen={() => platform.openExternal(article.canonicalUrl)}
       />
@@ -281,6 +315,18 @@ export default function App() {
         />
       )}
       {sharedIntro && <SharedIntro items={sharedIntro.items} pathLength={sharedIntro.pathLength} onContinue={() => setSharedIntro(null)} />}
+      {readerArticle && (
+        <ArticleReader
+          article={readerArticle}
+          detail={readerDetail}
+          loading={readerLoading}
+          error={readerError}
+          onBack={closeReader}
+          onOpen={() => platform.openExternal((readerDetail?.article ?? readerArticle).canonicalUrl)}
+          onRetry={() => setReaderRetry((value) => value + 1)}
+          onShare={() => void share(false, readerDetail?.article ?? readerArticle)}
+        />
+      )}
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );

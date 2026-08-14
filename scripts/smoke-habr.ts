@@ -1,4 +1,4 @@
-import { HABR_API_BASE, normalizeArticle, normalizeList } from '../src/source';
+import { HABR_API_BASE, normalizeArticleDetail, normalizeList } from '../src/source';
 
 const headers = {
   Accept: 'application/json',
@@ -28,9 +28,9 @@ async function main() {
   const hydrateIds = [anchor.id, related[0].id];
   const hydrated = [];
   for (const id of hydrateIds) {
-    const item = normalizeArticle((await getJson(`${HABR_API_BASE}/articles/${id}/`)).payload);
-    if (!item) throw new Error(`Hydration failed for ${id}`);
-    hydrated.push(item);
+    const detail = normalizeArticleDetail((await getJson(`${HABR_API_BASE}/articles/${id}/`)).payload);
+    if (!detail || detail.bodyHtml.length < 100) throw new Error(`Full article hydration failed for ${id}`);
+    hydrated.push(detail.article);
   }
   if (hydrated.map((item) => item.id).join(',') !== hydrateIds.join(',')) throw new Error('Hydration order changed');
 

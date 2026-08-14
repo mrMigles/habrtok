@@ -158,6 +158,72 @@ test('a fresh launch avoids the previous starting article', async ({ page }) => 
   await expect(page.getByTestId('article-title')).not.toHaveText(firstStart ?? '');
 });
 
+test('a deliberate card tap opens the full article reader with working actions', async ({ page }) => {
+  await skipOnboarding(page);
+  await installFixtures(page);
+  await page.goto('/');
+  await ready(page);
+  const feedTitle = await page.getByTestId('article-title').textContent();
+
+  await page.evaluate(() => {
+    Object.defineProperty(window.navigator, 'share', {
+      configurable: true,
+      value: async (data: ShareData) => {
+        document.documentElement.dataset.sharedUrl = data.url;
+      },
+    });
+    Object.defineProperty(window, 'open', {
+      configurable: true,
+      value: (url: string | URL | undefined) => {
+        document.documentElement.dataset.openedUrl = String(url ?? '');
+        return null;
+      },
+    });
+  });
+
+  await page.getByTestId('article-title').click();
+  const reader = page.getByTestId('article-reader');
+  await expect(reader).toBeVisible();
+  await expect(reader.getByRole('heading', { level: 1 })).toHaveText(feedTitle ?? '');
+  await expect(page.getByTestId('reader-body')).toContainText('Что находится внутри решения');
+  await expect(page.getByTestId('reader-body').locator('pre')).toContainText('loadArticle');
+  await expect(page.getByTestId('reader-body').locator('script')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => (window as Window & { evil?: boolean }).evil)).toBeUndefined();
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: `${shots}/14-article-reader.png` });
+
+  const readerScroll = page.getByTestId('reader-scroll');
+  const readerOverflow = await readerScroll.evaluate((element) => element.scrollWidth - element.clientWidth);
+  expect(readerOverflow).toBeLessThanOrEqual(0);
+  await readerScroll.evaluate((element) => element.scrollTo(0, element.scrollHeight));
+  await expect(reader.locator('.reader-footer').getByRole('button', { name: 'Открыть на Habr' })).toBeVisible();
+  await expect(reader.getByRole('button', { name: 'Назад к ленте' })).toBeVisible();
+
+  await reader.getByRole('button', { name: 'Поделиться статьёй' }).click();
+  await expect.poll(() => page.locator('html').getAttribute('data-shared-url')).toContain('#c=');
+  await reader.getByRole('button', { name: 'Открыть статью на Habr' }).click();
+  await expect.poll(() => page.locator('html').getAttribute('data-opened-url')).toContain('https://habr.com/ru/articles/');
+
+  await reader.getByRole('button', { name: 'Назад к ленте' }).click();
+  await expect(reader).toBeHidden();
+  await expect(page.getByTestId('article-title')).toHaveText(feedTitle ?? '');
+});
+
+test('the full article reader keeps back and retry reachable on API failure', async ({ page }) => {
+  await skipOnboarding(page);
+  await installFixtures(page, { failDetail: true });
+  await page.goto('/');
+  await ready(page);
+  const feedTitle = await page.getByTestId('article-title').textContent();
+
+  await page.getByTestId('article-title').click();
+  const reader = page.getByTestId('article-reader');
+  await expect(reader.getByText('Полный текст не загрузился')).toBeVisible();
+  await expect(reader.getByRole('button', { name: 'Повторить' })).toBeVisible();
+  await reader.getByRole('button', { name: 'Назад к ленте' }).click();
+  await expect(page.getByTestId('article-title')).toHaveText(feedTitle ?? '');
+});
+
 test('mobile install offer appears after two swipes and snoozes for a week', async ({ page, context }) => {
   await emulateMobilePlatform(page);
   await skipOnboarding(page);

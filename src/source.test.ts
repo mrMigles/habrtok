@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { HabrBrowserSource, normalizeArticle, normalizeList, plainText } from './source';
+import { HabrBrowserSource, normalizeArticle, normalizeArticleDetail, normalizeList, plainText } from './source';
 
 function rawArticle(id: string, overrides: Record<string, unknown> = {}) {
   return {
@@ -22,6 +22,7 @@ function rawArticle(id: string, overrides: Record<string, unknown> = {}) {
     readingTime: 7,
     complexity: 'medium',
     format: 'tutorial',
+    textHtml: `<div><h2>Полный текст ${id}</h2><p>Основная часть публикации с подробностями.</p></div>`,
     ...overrides,
   };
 }
@@ -66,6 +67,11 @@ describe('Habr normalization', () => {
   it('decodes numeric entities', () => {
     expect(plainText('<p>&#1058;&#1077;&#1089;&#1090; &#x2192;</p>')).toBe('Тест →');
   });
+
+  it('normalizes full article content only when textHtml is present', () => {
+    expect(normalizeArticleDetail(rawArticle('14'))?.bodyHtml).toContain('Полный текст 14');
+    expect(normalizeArticleDetail(rawArticle('15', { textHtml: null }))).toBeNull();
+  });
 });
 
 describe('HabrBrowserSource', () => {
@@ -108,6 +114,17 @@ describe('HabrBrowserSource', () => {
     const source = new HabrBrowserSource();
     const result = await source.hydrate(['3', '1', '2']);
     expect(result.map((item) => item.id)).toEqual(['3', '1', '2']);
+  });
+
+  it('coalesces full article requests and returns the body', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(rawArticle('7')), { status: 200 }),
+    );
+    const source = new HabrBrowserSource();
+    const [first, second] = await Promise.all([source.article('7'), source.article('7')]);
+    expect(first.bodyHtml).toContain('Полный текст 7');
+    expect(second).toEqual(first);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('propagates aborts without caching the failure', async () => {

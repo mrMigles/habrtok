@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { tokItemSchema, type TokItem, type TokSource } from './types';
+import { tokItemSchema, type TokArticleDetail, type TokItem, type TokSource } from './types';
 
 export const HABR_API_BASE = 'https://habr.com/kek/v2';
 const REQUEST_TIMEOUT_MS = 12_000;
@@ -67,6 +67,7 @@ const rawArticleSchema = z
     readingTime: z.number().int().positive().nullable().optional(),
     complexity: z.enum(['low', 'medium', 'high']).nullable().optional(),
     format: nullableString,
+    textHtml: nullableString,
   })
   .passthrough();
 
@@ -178,6 +179,14 @@ export function normalizeArticle(input: unknown): TokItem | null {
   });
 }
 
+export function normalizeArticleDetail(input: unknown): TokArticleDetail | null {
+  const raw = rawArticleSchema.safeParse(input);
+  const article = normalizeArticle(input);
+  const bodyHtml = raw.success ? raw.data.textHtml?.trim() : undefined;
+  if (!article || !bodyHtml) return null;
+  return { article, bodyHtml };
+}
+
 export function normalizeList(input: unknown): { items: TokItem[]; pagesCount: number } {
   const raw: RawList = rawListSchema.parse(input);
   const seen = new Set<string>();
@@ -253,7 +262,7 @@ export class HabrBrowserSource implements TokSource {
   private discoveryExhausted = false;
   private readonly discoveryInflight = new Map<number, Promise<TokItem[]>>();
   private readonly relatedInflight = new Map<string, Promise<TokItem[]>>();
-  private readonly detailInflight = new Map<string, Promise<TokItem | null>>();
+  private readonly detailInflight = new Map<string, Promise<TokArticleDetail>>();
 
   discover(signal?: AbortSignal): Promise<TokItem[]> {
     if (this.discoveryExhausted) return Promise.resolve([]);
@@ -312,11 +321,16 @@ export class HabrBrowserSource implements TokSource {
     return promise;
   }
 
-  private hydrateOne(id: string, signal?: AbortSignal): Promise<TokItem | null> {
+  article(id: string, signal?: AbortSignal): Promise<TokArticleDetail> {
+    if (!/^\d+$/.test(id)) return Promise.reject(new Error('Некорректный ID публикации'));
     const cached = this.detailInflight.get(id);
     if (cached) return cached;
     const promise = requestJson(`${HABR_API_BASE}/articles/${encodeURIComponent(id)}/`, signal)
-      .then(normalizeArticle)
+      .then((payload) => {
+        const detail = normalizeArticleDetail(payload);
+        if (!detail) throw new Error('Habr API вернул публикацию без полного текста');
+        return detail;
+      })
       .catch((error) => {
         this.detailInflight.delete(id);
         throw error;
@@ -328,8 +342,8 @@ export class HabrBrowserSource implements TokSource {
 
   async hydrate(ids: string[], signal?: AbortSignal): Promise<TokItem[]> {
     const bounded = ids.filter((id) => /^\d+$/.test(id)).slice(0, 12);
-    const items = await Promise.all(bounded.map((id) => this.hydrateOne(id, signal)));
-    return items.flatMap((item) => (item ? [item] : []));
+    const details = await Promise.all(bounded.map((id) => this.article(id, signal)));
+    return details.map((detail) => detail.article);
   }
 }
 

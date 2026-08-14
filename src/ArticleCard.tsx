@@ -17,6 +17,7 @@ interface ArticleCardProps {
   onPrevious: () => void;
   onExplore: () => void;
   onBack: () => void;
+  onRead: () => void;
   onShare: () => void;
   onOpen: () => void;
 }
@@ -130,6 +131,7 @@ function ArticleSurface({
 export function ArticleCard(props: ArticleCardProps) {
   const gestures = useGestures({
     disabled: props.disabled,
+    onTap: props.onRead,
     onDown: props.onPrevious,
     onUp: props.onNext,
     onLeft: props.onExplore,
