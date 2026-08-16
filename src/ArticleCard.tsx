@@ -131,6 +131,10 @@ function ArticleSurface({
 export function ArticleCard(props: ArticleCardProps) {
   const gestures = useGestures({
     disabled: props.disabled,
+    canDown: Boolean(props.previousArticle),
+    canUp: Boolean(props.nextArticle),
+    canLeft: Boolean(props.exploreArticle),
+    canRight: Boolean(props.parentArticle),
     onTap: props.onRead,
     onDown: props.onPrevious,
     onUp: props.onNext,
@@ -165,7 +169,7 @@ export function ArticleCard(props: ArticleCardProps) {
 
   return (
     <main
-      className={`article-deck ${drag.direction ? `drag-${drag.direction}` : ''} ${drag.ready ? 'gesture-ready' : ''}`}
+      className={`article-deck ${drag.direction ? `drag-${drag.direction}` : ''} ${drag.ready ? 'gesture-ready' : ''} ${drag.settling ? 'gesture-settling' : ''} ${drag.swapping ? 'gesture-swapping' : ''}`}
       {...gestures.bind}
       data-testid="article-card"
       data-drag-x={drag.x}

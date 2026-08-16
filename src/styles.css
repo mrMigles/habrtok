@@ -153,16 +153,19 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 3px solid
   background: var(--surface);
   overflow: hidden;
   transform-origin: center;
-  transition: transform 240ms cubic-bezier(.2, .82, .2, 1), opacity 180ms ease;
+  transition: transform 480ms cubic-bezier(.22, .68, .28, 1), opacity 300ms ease;
   will-change: transform;
 }
-.article-panel.current { z-index: 5; animation: card-enter 260ms cubic-bezier(.2,.82,.2,1) both; }
+.article-panel.current { z-index: 5; }
 .preview-panel { z-index: 3; pointer-events: none; }
 .side-preview { z-index: 7; pointer-events: none; box-shadow: -20px 0 50px rgba(0,0,0,.28); }
 .side-preview.parent { box-shadow: 20px 0 50px rgba(0,0,0,.28); }
-.drag-up .article-panel, .drag-down .article-panel, .drag-left .article-panel, .drag-right .article-panel { animation: none; transition-duration: 0ms; }
+.article-deck:not(.gesture-settling).drag-up .article-panel,
+.article-deck:not(.gesture-settling).drag-down .article-panel,
+.article-deck:not(.gesture-settling).drag-left .article-panel,
+.article-deck:not(.gesture-settling).drag-right .article-panel { transition-duration: 0ms; }
+.gesture-swapping .article-panel { transition: none; }
 .drag-left .preview-panel, .drag-right .preview-panel { opacity: 0 !important; }
-@keyframes card-enter { from { opacity: .72; transform: translate3d(0, 18px, 0) scale(.992); } }
 
 .hero { position: relative; min-height: 0; overflow: hidden; background: var(--hero); color: white; }
 .hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.04); transition: opacity .35s ease, transform 1s cubic-bezier(.2,.8,.2,1); }

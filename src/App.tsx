@@ -13,6 +13,9 @@ import { usePwaInstall } from './usePwaInstall';
 
 type Theme = 'light' | 'dark';
 
+const HISTORY_MARKER = '__habrtokNavigation';
+const ROOT_EXIT_DELAY = 2_000;
+
 function initialTheme(): Theme {
   const stored = platform.read('theme');
   if (stored === 'light' || stored === 'dark') return stored;
@@ -46,6 +49,9 @@ export default function App() {
   const [readerError, setReaderError] = useState<string | null>(null);
   const [readerRetry, setReaderRetry] = useState(0);
   const loadingMore = useRef(false);
+  const historyGuardActive = useRef(false);
+  const rootExitTimer = useRef<number | null>(null);
+  const nativeBackHandler = useRef<() => void>(() => undefined);
   const pwaInstall = usePwaInstall();
 
   const level = activeLevel(state);
@@ -190,6 +196,74 @@ export default function App() {
     setSharedIntro(null);
     closeReader();
   }, [closeReader]);
+
+  const armHistoryGuard = useCallback(() => {
+    if (rootExitTimer.current !== null) {
+      window.clearTimeout(rootExitTimer.current);
+      rootExitTimer.current = null;
+    }
+    if (historyGuardActive.current) return;
+    window.history.pushState({ [HISTORY_MARKER]: 'guard' }, '', window.location.href);
+    historyGuardActive.current = true;
+  }, []);
+
+  nativeBackHandler.current = () => {
+    historyGuardActive.current = false;
+
+    if (readerArticle) closeReader();
+    else if (showPath) setShowPath(false);
+    else if (showSettings) setShowSettings(false);
+    else if (pwaInstall.offerOpen) pwaInstall.dismissOffer();
+    else if (sharedIntro) setSharedIntro(null);
+    else if (showOnboarding) setShowOnboarding(false);
+    else if (depth > 0) dispatch({ type: 'BACK' });
+    else {
+      setToast('Нажмите «Назад» ещё раз, чтобы выйти');
+      rootExitTimer.current = window.setTimeout(() => {
+        rootExitTimer.current = null;
+        armHistoryGuard();
+        setToast(null);
+      }, ROOT_EXIT_DELAY);
+      return;
+    }
+
+    armHistoryGuard();
+  };
+
+  useEffect(() => {
+    const currentState = window.history.state as Record<string, unknown> | null;
+    if (currentState?.[HISTORY_MARKER] === 'guard') {
+      historyGuardActive.current = true;
+    } else {
+      window.history.replaceState({ ...(currentState ?? {}), [HISTORY_MARKER]: 'base' }, '', window.location.href);
+      armHistoryGuard();
+    }
+
+    const onPopState = (event: PopStateEvent) => {
+      const nextState = event.state as Record<string, unknown> | null;
+      if (nextState?.[HISTORY_MARKER] === 'guard') {
+        historyGuardActive.current = true;
+        if (rootExitTimer.current !== null) {
+          window.clearTimeout(rootExitTimer.current);
+          rootExitTimer.current = null;
+        }
+        setToast(null);
+        return;
+      }
+      nativeBackHandler.current();
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      if (rootExitTimer.current !== null) window.clearTimeout(rootExitTimer.current);
+    };
+  }, [armHistoryGuard]);
+
+  useEffect(() => {
+    if (rootExitTimer.current === null) return;
+    armHistoryGuard();
+    setToast(null);
+  }, [armHistoryGuard, article?.id, depth, pwaInstall.offerOpen, readerArticle, sharedIntro, showOnboarding, showPath, showSettings]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

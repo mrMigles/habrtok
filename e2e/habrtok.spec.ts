@@ -8,6 +8,7 @@ async function swipe(page: Page, from: { x: number; y: number }, to: { x: number
   await page.mouse.down();
   await page.mouse.move(to.x, to.y, { steps: 6 });
   await page.mouse.up();
+  await page.waitForTimeout(540);
 }
 
 async function ready(page: Page) {
@@ -146,6 +147,60 @@ test('held vertical drag moves full adjacent cards and cancellation does not com
   await expect(page.getByTestId('article-title')).toHaveText('TypeScript на границе системы');
 });
 
+test('released swipe settles smoothly before committing the adjacent card', async ({ page }) => {
+  await skipOnboarding(page);
+  await installFixtures(page);
+  await page.goto('/');
+  await ready(page);
+  const card = page.getByTestId('article-card');
+  const initialTitle = await page.getByTestId('article-title').textContent();
+
+  await page.mouse.move(190, 650);
+  await page.mouse.down();
+  await page.mouse.move(190, 470, { steps: 5 });
+  await page.mouse.up();
+
+  await expect(card).toHaveClass(/gesture-settling/);
+  await expect(page.getByTestId('article-title')).toHaveText(initialTitle ?? '');
+  await page.waitForTimeout(120);
+  await expect(card).toHaveClass(/gesture-settling/);
+  await expect(page.getByTestId('article-title')).toHaveText(initialTitle ?? '');
+  await expect(page.getByTestId('article-title')).not.toHaveText(initialTitle ?? '', { timeout: 1_000 });
+  const postSwapOffset = await page.getByTestId('article-panel-current').evaluate((element) => (
+    new DOMMatrix(window.getComputedStyle(element).transform).m42
+  ));
+  expect(Math.abs(postSwapOffset)).toBeLessThan(1);
+  await expect(card).not.toHaveClass(/gesture-settling/);
+  await expect(card).not.toHaveClass(/gesture-swapping/);
+});
+
+test('mouse hover after release cannot keep the swipe gesture alive', async ({ page }) => {
+  await skipOnboarding(page);
+  await installFixtures(page);
+  await page.goto('/');
+  await ready(page);
+  const card = page.getByTestId('article-card');
+  const initialTitle = await page.getByTestId('article-title').textContent();
+
+  await page.mouse.move(190, 650);
+  await page.mouse.down();
+  await page.mouse.move(190, 470, { steps: 5 });
+  await page.mouse.up();
+  await expect(card).toHaveClass(/gesture-settling/);
+  const releasedOffset = await card.getAttribute('data-drag-y');
+
+  await page.mouse.move(300, 180, { steps: 10 });
+  await expect(card).toHaveAttribute('data-drag-y', releasedOffset ?? '');
+  await expect(page.getByTestId('article-title')).not.toHaveText(initialTitle ?? '', { timeout: 1_000 });
+  await expect(card).not.toHaveClass(/drag-up|gesture-settling|gesture-swapping/);
+
+  const settledTitle = await page.getByTestId('article-title').textContent();
+  await page.mouse.move(80, 720, { steps: 12 });
+  await page.waitForTimeout(700);
+  await expect(page.getByTestId('article-title')).toHaveText(settledTitle ?? '');
+  await expect(card).toHaveAttribute('data-drag-y', '0');
+});
+
 test('a fresh launch avoids the previous starting article', async ({ page }) => {
   await skipOnboarding(page);
   await installFixtures(page);
@@ -207,6 +262,30 @@ test('a deliberate card tap opens the full article reader with working actions',
   await reader.getByRole('button', { name: 'Назад к ленте' }).click();
   await expect(reader).toBeHidden();
   await expect(page.getByTestId('article-title')).toHaveText(feedTitle ?? '');
+});
+
+test('native back closes the reader, returns one level, and requires two presses at root', async ({ page }) => {
+  await skipOnboarding(page);
+  await installFixtures(page);
+  await page.goto('/');
+  await ready(page);
+  const rootTitle = await page.getByTestId('article-title').textContent();
+
+  await page.getByTestId('article-title').click();
+  await expect(page.getByTestId('article-reader')).toBeVisible();
+  await page.evaluate(() => window.history.back());
+  await expect(page.getByTestId('article-reader')).toBeHidden();
+  await expect(page.getByTestId('article-title')).toHaveText(rootTitle ?? '');
+
+  await swipe(page, { x: 330, y: 410 }, { x: 120, y: 410 });
+  await expect(page.locator('.depth-pill')).toBeVisible();
+  await page.evaluate(() => window.history.back());
+  await expect(page.locator('.depth-pill')).toBeHidden();
+  await expect(page.getByTestId('article-title')).toHaveText(rootTitle ?? '');
+
+  await page.evaluate(() => window.history.back());
+  await expect(page.getByText('Нажмите «Назад» ещё раз, чтобы выйти')).toBeVisible();
+  await expect(page.getByTestId('article-title')).toHaveText(rootTitle ?? '');
 });
 
 test('the full article reader keeps back and retry reachable on API failure', async ({ page }) => {
